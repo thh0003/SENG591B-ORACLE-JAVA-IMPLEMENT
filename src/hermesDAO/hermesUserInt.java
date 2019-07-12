@@ -6,6 +6,7 @@ import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.html.HTMLDocument;
+import java.net.URLConnection;
 
 import helpers.Wizard;
 
@@ -17,10 +18,13 @@ import javax.swing.JScrollPane;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.io.DataInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -36,7 +40,7 @@ public class hermesUserInt extends JPanel {
 	private static final long serialVersionUID = 1L;
 	
 	protected Connection dbConn;
-	protected String[][] queryArray = new String[3][20]; 
+	protected String[][] queryArray = new String[3][28]; 
 	protected Wizard wiz = new Wizard();
 	private String username;
 	private String password;
@@ -74,6 +78,8 @@ public class hermesUserInt extends JPanel {
 		this.queryArray[0][17] = "Aggregate Select Query 2";
 		this.queryArray[0][18] = "Aggregate Select Query 3";
 		this.queryArray[0][19] = "Aggregate Select Query 4";
+		this.queryArray[0][20] = "Load Customer Data";
+		
 		
 		this.queryArray[2][0] = "UPDATE";
 		this.queryArray[2][1] = "UPDATE";
@@ -95,6 +101,7 @@ public class hermesUserInt extends JPanel {
 		this.queryArray[2][17] = "SELECT";
 		this.queryArray[2][18] = "SELECT";
 		this.queryArray[2][19] = "SELECT";
+		this.queryArray[2][19] = "INSERT";
 		
 		this.queryArray[1][0] = "UPDATE Customer SET First_Name = 'Trevor', Middle_Name = 'Hunt', Last_Name = 'Holmes', Email = 'tholmes4005@gmail.com', Phone = '309-648-3968' WHERE Useridentifier = '11E99838993835F4B77F42010A80016C'";
 		this.queryArray[1][1] = "UPDATE Customer SET Active = 0 WHERE Useridentifier = '11E99838993835F4B77F42010A80016C'";
@@ -117,6 +124,20 @@ public class hermesUserInt extends JPanel {
 		this.queryArray[1][18] = "SELECT Shipment.Useridentifier FROM Shipment INNER JOIN User_Package ON User_Package.FedEx_Shipping_ID = Shipment.FedEx_Shipping_ID WHERE User_Package.Weight > 10 AND EXTRACT(YEAR FROM Shipment.Shipped_Date) = 2018 and Shipment.Useridentifier IN (SELECT Address.Useridentifier FROM Address WHERE Address.addressidentifier = Shipment.To_Addressidentifier and Address.State = 'WV')";
 		this.queryArray[1][19] = "SELECT Customer.Useridentifier FROM Customer INNER JOIN Address ON Address.Useridentifier = Customer.Useridentifier WHERE Address.Address_Type = 4 AND Address.State='IL' and Customer.Useridentifier IN (SELECT Address.Useridentifier FROM Address INNER JOIN Shipment ON Address.Useridentifier = Shipment.Useridentifier WHERE Address.addressidentifier = Shipment.From_Addressidentifier and Address.State = 'WV')";
 
+		try{
+			
+	         DataInputStream dis = new DataInputStream (new FileInputStream ("https://www.scoutprop.com/SENG591B/ORACLE-DATA/Customers-ORACLE.sql"));
+	         String out = new Scanner(new URL("https://www.scoutprop.com/SENG591B/ORACLE-DATA/Customers-ORACLE.sql").openStream(), "UTF-8").useDelimiter("\\A").next();
+		 byte[] datainBytes = new byte[dis.available()];
+		 dis.readFully(datainBytes);
+		 dis.close();
+		       
+		 String content = new String(datainBytes, 0, datainBytes.length);
+		 this.queryArray[1][20] = content;
+		 
+		}catch(Exception ex){
+			ex.printStackTrace();
+		}
 	}
 	
     private void initUI() {
@@ -129,7 +150,10 @@ public class hermesUserInt extends JPanel {
 		// Create Data Select Tab
 		JTabbedPane hsInterface = new JTabbedPane();
 		JPanel hsDataViewer = createInnerPanel("Select Data to View",0,0);
+		JPanel hsInsertData = createInnerPanel("Insert Data",0,0);
+		
 		hsInterface.addTab("Data Viewer", icon, hsDataViewer, "Data Viewer");
+		hsInterface.addTab("Insert Data", icon, hsInsertData, "Insert Data");
 		hsInterface.setSelectedIndex(0);
 			
 		JLabel hslabel1 = new JLabel("Table");
@@ -284,18 +308,18 @@ public class hermesUserInt extends JPanel {
 		add(hsInterface);
     }
     
-    protected Boolean runQuery(String Query) {
-    	
-		
+    protected Number runQuery(String Query) {
+    		
+		Number count = -1;
 		try {
-			Statement stmt = this.dbConn.createStatement();;
-			ResultSet rs = stmt.executeQuery(Query);
+			PreparedStatement prep = dbConn.prepareStatement(Query);
+			count = prep.executeUpdate();
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return false;
+			return -1;
 		}{
-			return true;
+			return count;
 		}
     }
 	protected void updateDataPane(JTextPane pane, String query, String queryType) {
@@ -306,6 +330,7 @@ public class hermesUserInt extends JPanel {
 		try {
 			createDBConnection();
 			stmt = this.dbConn.createStatement();
+
 			ResultSet rs = stmt.executeQuery(query);
 			System.out.println("SQL STATEMENT: "+ query);
 			
@@ -377,7 +402,7 @@ public class hermesUserInt extends JPanel {
 						colComboBox = new JComboBox<String>();
 					}
 					final String query = "SELECT * FROM " + tableComboBox.getSelectedItem().toString();
-					Statement stmt = this.dbConn.createStatement(); // INJECTION RISK
+					Statement stmt = this.dbConn.createStatement(); 
 					rs = stmt.executeQuery(query);
 					rsmd=rs.getMetaData();
 					colComboBox.removeAllItems();
